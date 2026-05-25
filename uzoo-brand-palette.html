@@ -8,45 +8,57 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:transparent;padding:0}
+body{background:transparent;padding:0;overflow:hidden}
+.flash{position:fixed;inset:0;opacity:0;pointer-events:none;z-index:999;transition:opacity .08s}
+.flash.in{opacity:1;transition:opacity .08s}
+.flash.out{opacity:0;transition:opacity .35s}
 .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:0;border-radius:12px;overflow:hidden;font-family:'Poppins',sans-serif}
-.card{padding:20px 16px 14px;display:flex;flex-direction:column;justify-content:space-between;min-height:160px;cursor:default;transition:transform .22s cubic-bezier(.25,.46,.45,.94),opacity .22s}
-.card:hover{transform:scale(1.04);z-index:2;opacity:.95}
+.card{padding:20px 16px 14px;display:flex;flex-direction:column;justify-content:space-between;min-height:160px;cursor:pointer;transition:transform .22s cubic-bezier(.25,.46,.45,.94);position:relative;z-index:1}
+.card:hover{transform:scale(1.04);z-index:2}
 .card-name{font-size:15px;font-weight:600;line-height:1.2;letter-spacing:-.01em}
 .badges{display:flex;flex-direction:column;gap:4px;margin-top:14px}
 .badge{font-family:'DM Mono',monospace;font-size:10px;padding:3px 8px;border-radius:20px;cursor:pointer;transition:opacity .12s;width:fit-content;user-select:none;white-space:nowrap}
 .badge:hover{opacity:.65}
 .badge:active{transform:scale(.96)}
-.toast{position:fixed;bottom:14px;left:50%;transform:translateX(-50%) translateY(10px);font-family:'DM Mono',monospace;font-size:11px;padding:5px 14px;border-radius:20px;opacity:0;pointer-events:none;transition:all .18s;white-space:nowrap;z-index:99}
+.toast{position:fixed;bottom:14px;left:50%;transform:translateX(-50%) translateY(10px);font-family:'DM Mono',monospace;font-size:11px;padding:5px 14px;border-radius:20px;opacity:0;pointer-events:none;transition:all .18s;white-space:nowrap;z-index:9999}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
+<div class="flash" id="flash"></div>
 <div class="grid" id="grid"></div>
 <div class="toast" id="toast"></div>
 <script>
 const colors=[
   {name:"Branco",pantone:null,hex:"#FFFFFF",rgb:"255, 255, 255",bg:"#FFFFFF",fg:"#1a1a1a",badgeBg:"rgba(0,0,0,0.07)",badgeFg:"#1a1a1a",border:"1px solid #e8e8e8"},
-  {name:"Verde água",pantone:"7472 C",hex:"#4DBB8D",rgb:"77, 187, 141",bg:"#4DBB8D",fg:"#fff",badgeBg:"rgba(255,255,255,0.22)",badgeFg:"#fff"},
-  {name:"Azul petróleo",pantone:"7477 C",hex:"#254858",rgb:"37, 72, 88",bg:"#254858",fg:"#fff",badgeBg:"rgba(255,255,255,0.15)",badgeFg:"#fff"},
-  {name:"Amarelo vibrante",pantone:"Yellow 012 C",hex:"#FFC800",rgb:"255, 200, 0",bg:"#FFC800",fg:"#1a1a1a",badgeBg:"rgba(0,0,0,0.1)",badgeFg:"#1a1a1a"},
-  {name:"Laranja coral",pantone:"164 C",hex:"#FB854E",rgb:"251, 133, 78",bg:"#FB854E",fg:"#fff",badgeBg:"rgba(255,255,255,0.22)",badgeFg:"#fff"},
+  {name:"Verde água",pantone:"PANTONE 7472 C",hex:"#4DBB8D",rgb:"77, 187, 141",bg:"#4DBB8D",fg:"#fff",badgeBg:"rgba(255,255,255,0.22)",badgeFg:"#fff"},
+  {name:"Azul petróleo",pantone:"PANTONE 7477 C",hex:"#254858",rgb:"37, 72, 88",bg:"#254858",fg:"#fff",badgeBg:"rgba(255,255,255,0.15)",badgeFg:"#fff"},
+  {name:"Amarelo vibrante",pantone:"PANTONE Yellow 012 C",hex:"#FFC800",rgb:"255, 200, 0",bg:"#FFC800",fg:"#1a1a1a",badgeBg:"rgba(0,0,0,0.1)",badgeFg:"#1a1a1a"},
+  {name:"Laranja coral",pantone:"PANTONE 164 C",hex:"#FB854E",rgb:"251, 133, 78",bg:"#FB854E",fg:"#fff",badgeBg:"rgba(255,255,255,0.22)",badgeFg:"#fff"},
 ];
 
-const grid=document.getElementById('grid');
+const flash=document.getElementById('flash');
 const toast=document.getElementById('toast');
-let timer;
+let toastTimer, flashTimer;
 
-function copy(val,el,c){
+function doFlash(bg){
+  clearTimeout(flashTimer);
+  flash.style.background=bg;
+  flash.className='flash in';
+  flashTimer=setTimeout(()=>{
+    flash.className='flash out';
+  },120);
+}
+
+function copy(val,c){
   const ok=()=>{
-    el.style.opacity='.4';
-    setTimeout(()=>el.style.opacity='',900);
+    doFlash(c.bg);
     toast.textContent='✓ '+val;
     toast.style.background=c.bg==='#FFFFFF'?'#1a1a1a':c.bg;
     toast.style.color=c.fg;
     toast.classList.add('show');
-    clearTimeout(timer);
-    timer=setTimeout(()=>toast.classList.remove('show'),1500);
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>toast.classList.remove('show'),1500);
   };
   navigator.clipboard?navigator.clipboard.writeText(val).then(ok):ok();
 }
@@ -55,16 +67,25 @@ colors.forEach(c=>{
   const card=document.createElement('div');
   card.className='card';
   card.style.cssText=`background:${c.bg};${c.border?'border:'+c.border+';':''}`;
+
   const badges=[
-    c.pantone?{label:'PMS '+c.pantone,val:'PANTONE '+c.pantone}:null,
-    {label:c.hex,val:c.hex},
-    {label:'rgb('+c.rgb+')',val:'rgb('+c.rgb+')'},
+    {label:c.hex, val:c.hex},
+    {label:'rgb('+c.rgb+')', val:'rgb('+c.rgb+')'},
+    c.pantone?{label:c.pantone, val:c.pantone}:null,
   ].filter(Boolean);
+
   card.innerHTML=`<span class="card-name" style="color:${c.fg}">${c.name}</span><div class="badges">${badges.map(b=>`<span class="badge" data-val="${b.val}" style="background:${c.badgeBg};color:${c.badgeFg}">${b.label}</span>`).join('')}</div>`;
+
   card.querySelectorAll('.badge').forEach(b=>{
-    b.addEventListener('click',e=>{e.stopPropagation();copy(b.dataset.val,b,c);});
+    b.addEventListener('click',e=>{
+      e.stopPropagation();
+      copy(b.dataset.val,c);
+    });
   });
-  grid.appendChild(card);
+
+  card.addEventListener('click',()=>copy(c.hex,c));
+
+  document.getElementById('grid').appendChild(card);
 });
 </script>
 </body>
